@@ -149,7 +149,7 @@ const ScriptItemRow = ({ item, isFavorite, onToggleFavorite, hoveredFav, setHove
       style={{
         display: "flex", alignItems: "center", gap: 8,
         padding: "6px 6px", borderRadius: 6, cursor: "pointer",
-        background: hoveredFav === item.id ? item.bg : "transparent",
+        background: hoveredFav === item.id ? t.bg : "transparent",
         transition: "background 0.1s",
       }}
     >
@@ -162,9 +162,9 @@ const ScriptItemRow = ({ item, isFavorite, onToggleFavorite, hoveredFav, setHove
         onClick={() => handleLaunch(item.id)}
         style={{
           padding: "3px 12px", borderRadius: 6, flexShrink: 0,
-          border: `1px solid ${hov ? item.color : t.border2}`,
-          background: hov ? item.bg : "transparent",
-          color: hov ? item.color : t.text2,
+          border: `1px solid ${hov ? t.text : t.border2}`,
+          background: hov ? t.bg : "transparent",
+          color: hov ? t.text : t.text2,
           fontSize: 12, fontWeight: 500, cursor: "pointer",
           transition: "all 0.15s",
           minWidth: 60, textAlign: "center",
