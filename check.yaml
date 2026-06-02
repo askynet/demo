@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: code-server-demo
+  namespace: fbs-dev
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: code-server-demo
+
+  template:
+    metadata:
+      labels:
+        app: code-server-demo
+
+    spec:
+      containers:
+        - name: code-server
+
+          image: registry-dev.cigna.com/eksworkshop/code-server
+
+          ports:
+            - containerPort: 8080
+
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+
+      volumes:
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: fbs-dev-workspace
