@@ -1,0 +1,17 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: code-fbs-dev
+  namespace: fbs-dev
+spec:
+  host: code-fbs-dev.apps.gp-5-nonprod.openshift.cignacloud.com
+  to:
+    kind: Service
+    name: fbs-code-server
+    weight: 100
+  port:
+    targetPort: 80
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
