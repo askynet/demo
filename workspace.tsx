@@ -1,134 +1,161 @@
-import { useState } from 'react';
-import { Sidebar } from 'primereact/sidebar';
+import React, { useState } from 'react';
 import { Button } from 'primereact/button';
+import { Dialog } from 'primereact/dialog';
 import { ProgressSpinner } from 'primereact/progressspinner';
-import { Tag } from 'primereact/tag';
+import { Steps } from 'primereact/steps';
+import { Toast } from 'primereact/toast';
+import { useRef } from 'react';
 import axios from 'axios';
 
 export default function WorkspaceLauncher() {
-    const [visible, setVisible] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [ready, setReady] = useState(false);
-    const [message, setMessage] = useState('');
+  const toast = useRef<Toast>(null);
 
-    const launchWorkspace = async () => {
-        try {
-            setVisible(true);
-            setLoading(true);
-            setReady(false);
+  const [visible, setVisible] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [loading, setLoading] = useState(false);
 
-            setMessage('Creating workspace...');
+  const steps = [
+    { label: 'Request' },
+    { label: 'Provision' },
+    { label: 'Ready' }
+  ];
 
-            await axios.post('/api/workspaces/open');
+  const sleep = (ms: number) =>
+    new Promise(resolve => setTimeout(resolve, ms));
 
-            pollStatus();
-        } catch (error) {
-            setLoading(false);
-            setMessage('Failed to create workspace');
-        }
-    };
+  const launchWorkspace = async () => {
+    try {
+      setVisible(true);
+      setLoading(true);
+      setActiveIndex(0);
 
-    const pollStatus = async () => {
-        const interval = setInterval(async () => {
-            try {
-                const { data } = await axios.get(
-                    '/api/workspaces/status'
-                );
+      const openResponse = await axios.post(
+        '/api/workspaces/open'
+      );
 
-                if (data.ready) {
-                    clearInterval(interval);
+      setActiveIndex(1);
 
-                    setLoading(false);
-                    setReady(true);
+      let ready = false;
 
-                    setMessage(
-                        'Workspace ready. Opening VS Code...'
-                    );
+      while (!ready) {
+        await sleep(2000);
 
-                    const workspaceUrl =
-                        `/workspaces/${data.workspaceId}`;
+        const statusResponse = await axios.get(
+          '/api/workspaces/status'
+        );
 
-                    setTimeout(() => {
-                        window.open(
-                            workspaceUrl,
-                            '_blank',
-                            'noopener,noreferrer'
-                        );
+        ready = statusResponse.data.ready;
+      }
 
-                        setVisible(false);
-                    }, 1500);
-                }
-            } catch (err) {
-                clearInterval(interval);
+      setActiveIndex(2);
 
-                setLoading(false);
-                setMessage(
-                    'Unable to start workspace'
-                );
-            }
-        }, 2000);
-    };
+      toast.current?.show({
+        severity: 'success',
+        summary: 'Workspace Ready',
+        detail: 'Opening workspace...',
+        life: 3000
+      });
 
-    return (
-        <>
-            <Button
-                label="Open Workspace"
-                icon="pi pi-desktop"
-                onClick={launchWorkspace}
-            />
+      await sleep(1000);
 
-            <Sidebar
-                visible={visible}
-                position="bottom"
-                onHide={() => setVisible(false)}
+      const workspaceUrl =
+        openResponse.data.url;
+
+      window.open(
+        workspaceUrl,
+        '_blank',
+        'noopener,noreferrer'
+      );
+
+      setVisible(false);
+    } catch (error: any) {
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Workspace Failed',
+        detail:
+          error?.response?.data?.message ||
+          'Unable to start workspace',
+        life: 5000
+      });
+
+      setVisible(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <Toast ref={toast} />
+
+      <Button
+        label="Open Workspace"
+        icon="pi pi-desktop"
+        onClick={launchWorkspace}
+      />
+
+      <Dialog
+        visible={visible}
+        closable={false}
+        draggable={false}
+        resizable={false}
+        position="bottom"
+        style={{
+          width: '600px'
+        }}
+        onHide={() => {}}
+      >
+        <div className="flex flex-column gap-5">
+          <div>
+            <h3 className="m-0">
+              Workspace Setup
+            </h3>
+
+            <p className="text-color-secondary mt-2">
+              Please wait while your workspace
+              is being prepared.
+            </p>
+          </div>
+
+          <Steps
+            model={steps}
+            activeIndex={activeIndex}
+            readOnly
+          />
+
+          <div className="flex justify-content-center">
+            {loading && (
+              <ProgressSpinner
                 style={{
-                    height: '280px'
+                  width: '50px',
+                  height: '50px'
                 }}
-                showCloseIcon={!loading}
-            >
-                <div className="flex flex-column align-items-center justify-content-center h-full gap-4">
-                    {loading && (
-                        <>
-                            <ProgressSpinner
-                                style={{
-                                    width: '60px',
-                                    height: '60px'
-                                }}
-                            />
+              />
+            )}
+          </div>
 
-                            <h3 className="m-0">
-                                Setting up Workspace
-                            </h3>
+          <div className="surface-100 border-round p-3">
+            {activeIndex === 0 && (
+              <span>
+                Requesting workspace...
+              </span>
+            )}
 
-                            <p className="text-color-secondary">
-                                {message}
-                            </p>
+            {activeIndex === 1 && (
+              <span>
+                Creating pod, service and route.
+                This may take up to 30 seconds.
+              </span>
+            )}
 
-                            <Tag
-                                value="This may take 10-30 seconds"
-                                severity="info"
-                            />
-                        </>
-                    )}
-
-                    {ready && (
-                        <>
-                            <i
-                                className="pi pi-check-circle text-green-500"
-                                style={{
-                                    fontSize: '4rem'
-                                }}
-                            />
-
-                            <h3>
-                                Workspace Ready
-                            </h3>
-
-                            <p>{message}</p>
-                        </>
-                    )}
-                </div>
-            </Sidebar>
-        </>
-    );
+            {activeIndex === 2 && (
+              <span>
+                Workspace ready. Opening now...
+              </span>
+            )}
+          </div>
+        </div>
+      </Dialog>
+    </>
+  );
 }
